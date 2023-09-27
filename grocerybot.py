@@ -95,3 +95,142 @@ docs = recipe_retriever.get_relevant_documents("Any lasagne recipes?")
 pprint.pprint([doc.metadata for doc in docs])
 
 
+@tool(return_direct=True)
+def retrieve_recipes(query: str) -> str:
+    """
+    Searches the recipe catalog to find recipes for the query.
+    Return the output without processing further.
+    """
+    docs = recipe_retriever.get_relevant_documents(query)
+
+    return (
+        f"Select the recipe you would like to explore further about {query}: [START CALLBACK FRONTEND] "
+        + str([doc.metadata for doc in docs])
+        + " [END CALLBACK FRONTEND]"
+    )
+
+
+@tool(return_direct=True)
+def retrieve_products(query: str) -> str:
+    """Searches the product catalog to find products for the query.
+    Use it when the user asks for the products available for a specific item. For example `Can you show me which onions I can buy?`
+    """
+    docs = product_retriever.get_relevant_documents(query)
+    return (
+        f"I found these products about {query}:  [START CALLBACK FRONTEND] "
+        + str([doc.metadata for doc in docs])
+        + " [END CALLBACK FRONTEND]"
+    )
+
+
+@tool
+def recipe_selector(path: str) -> str:
+    """
+    Use this when the user selects a recipe.
+    You will need to respond to the user telling what are the options once a recipe is selected.
+    You can explain what are the ingredients of the recipe, show you the cooking instructions or suggest you which products to buy from the catalog!
+    """
+    return "Great choice! I can explain what are the ingredients of the recipe, show you the cooking instructions or suggest you which products to buy from the catalog!"
+
+
+docs = load_docs_from_directory("./recipes/*")
+recipes_detail = {doc.metadata["source"]: doc.page_content for doc in docs}
+
+
+@tool
+def get_recipe_detail(path: str) -> str:
+    """
+    Use it to find more information for a specific recipe, such as the ingredients or the cooking steps.
+    Use this to find what are the ingredients for a recipe or the cooking steps.
+
+    Example output:
+    Ingredients:
+
+    * 1 pound lasagna noodles
+    * 1 pound ground beef
+    * 1/2 cup chopped onion
+    * 2 cloves garlic, minced
+    * 2 (28 ounce) cans crushed tomatoes
+    * 1 (15 ounce) can tomato sauce
+    * 1 teaspoon dried oregano
+
+    Would you like me to show you the suggested products from the catalogue?
+    """
+    try:
+        return recipes_detail[path]
+    except KeyError:
+        return "Could not find the details for this recipe"
+
+
+
+@tool(return_direct=True)
+def get_suggested_products_for_recipe(recipe_path: str) -> str:
+    """Use this only if the user would like to buy certain products connected to a specific recipe example 'Can you give me the products I can buy for the lasagne?'",
+
+    Args:
+        recipe_path: The recipe path.
+
+    Returns:
+        A list of products the user might want to buy.
+    """
+    recipe_to_product_mapping = {
+        "./recipes/lasagne.txt": [
+            "./products/angus_beef_lean_mince.txt",
+            "./products/large_onions.txt",
+            "./products/classic_carrots.txt",
+            "./products/classic_tomatoes.txt",
+        ]
+    }
+
+    return (
+        "These are some suggested ingredients for your recipe [START CALLBACK FRONTEND] "
+        + str(recipe_to_product_mapping[recipe_path])
+        + " [END CALLBACK FRONTEND]"
+    )
+
+
+
+memory = ConversationBufferMemory(memory_key="chat_history")
+memory.clear()
+
+tools = [
+    retrieve_recipes,
+    retrieve_products,
+    get_recipe_detail,
+    get_suggested_products_for_recipe,
+    recipe_selector,
+]
+agent = initialize_agent(
+    tools,
+    llm,
+    agent=AgentType.CONVERSATIONAL_REACT_DESCRIPTION,
+    memory=memory,
+    verbose=True,
+)
+
+
+
+agent.run("I would like to cook some lasagne. What are the recipes available?")
+
+
+agent.run("Selecting ./recipes/lasagne.txt")
+
+agent.run("Yes, can you give me the ingredients for that recipe?")
+
+
+agent.run("Can you give me the cooking instructions for that recipe?")
+
+
+agent.run("Can you give me the products I can buy for this recipe?")
+
+
+agent.run("Can you show me other tomatoes you have available?")
+
+agent.run("Nice, how about carrots?")
+
+
+agent.run("Thank you, that's everything!")
+
+
+
+
