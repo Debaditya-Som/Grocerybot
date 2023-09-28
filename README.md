@@ -1,5 +1,7 @@
 # Grocerybot
 
+Grocerybot is an innovative chatbot powered by artificial intelligence (AI) using Vertex API 
+
 ![spotbot_chat_example](https://github.com/Debaditya-Som/Grocerybot/assets/121785700/29745d69-baae-4e25-b174-a6ceed70971a)
 
 Implementation of the Grocerybot
